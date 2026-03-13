@@ -1,6 +1,9 @@
 import streamlit as st
 import json
 from pathlib import Path
+import os
+pdf_files = [f for f in os.listdir("uploads") if f.endswith('.pdf')]
+st.write(f"PDF precaricati: {pdf_files}")
 
 
 DATA_DIR = Path("uploads")
