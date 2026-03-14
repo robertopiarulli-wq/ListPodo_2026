@@ -8,15 +8,6 @@ st.title("🔍 Ricerca Globale Preventivi - TUTTI PDF + Volantini")
 
 # === CARICA TUTTI PDF AUTOMATICO ===
 if os.path.exists("uploads"):
-    pdf_files
-
-
-
-st.set_page_config(layout="wide")
-st.title("🔍 Ricerca Globale Preventivi - TUTTI PDF + Volantini")
-
-# === CARICA TUTTI PDF AUTOMATICO ===
-if os.path.exists("uploads"):
     pdf_files = [f for f in os.listdir("uploads") if f.endswith('.pdf')]
     st.success(f"✅ {len(pdf_files)} PDF caricati: {', '.join(pdf_files)}")
     
