@@ -32,7 +32,7 @@ if os.path.exists("uploads"):
                                         'Dati': dict(zip(headers[:5], row[:5]))
                                     })
                     
-                    # 2. TESTO LIBERO (MIGLIORATO PER PROMOZIONI)
+                    # 2. TESTO LIBERO (MIGLIORATO)
                     page_text = page.extract_text(layout=True)
                     if page_text:
                         lines = [l.strip() for l in page_text.split('\n') if len(l.strip()) > 3]
@@ -40,7 +40,7 @@ if os.path.exists("uploads"):
                             all_data.append({
                                 'PDF': pdf_file,
                                 'Pagina': i+1,
-                                'Tipo': '📄 TXT', 
+                                'Tipo': '📄 TXT',
                                 'Dati': {'Testo': line[:120]}
                             })
                     else:
@@ -52,3 +52,56 @@ if os.path.exists("uploads"):
                                 all_data.append({
                                     'PDF': pdf_file,
                                     'Pagina': i+1,
+                                    'Tipo': '✍️ CHAR',
+                                    'Dati': {'Testo': char_text[:150]}
+                                })
+                    
+                    # 4. IMMAGINI
+                    images = page.images
+                    if images:
+                        all_data.append({
+                            'PDF': pdf_file,
+                            'Pagina': i+1,
+                            'Tipo': '🖼️ IMG',
+                            'Dati': {'Immagini': f"{len(images)} immagini"}
+                        })
+        except Exception as e:
+            st.warning(f"⚠️ Errore {pdf_file}: {str(e)[:50]}")
+    
+    if all_data:
+        df = pd.DataFrame(all_data)
+        st.success(f"📊 {len(df)} righe totali estratte!")
+        
+        # === RICERCA GLOBALE (3 CAMPI) ===
+        st.subheader("🔍 RICERCA SU TUTTI I PDF")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            query_tutti = st.text_input("🔎 Cerca ovunque")
+        with col2:
+            query_codice = st.text_input("📱 Codice/SKU")
+        with col3:
+            query_prodotto = st.text_input("📦 Prodotto/Descrizione")
+        
+        # === FILTRA ===
+        df_display = df.copy()
+        for query in [q for q in [query_tutti, query_codice, query_prodotto] if q]:
+            df_display = df_display[df_display['Dati'].astype(str).str.contains(query, case=False, na=False)]
+        
+        st.success(f"🔎 {len(df_display)} risultati trovati")
+        
+        # === SOLO COLONNA DATI - CARATTERI GRANDI ===
+        st.subheader(f"📋 {len(df_display)} Risultati (solo Dati)")
+        for idx, row in df_display.iterrows():
+            dati_str = " | ".join([f"{k}: {v}" for k,v in row['Dati'].items() if v])
+            st.markdown(f"""
+            <div style='font-size: 18px; padding: 12px; border-bottom: 1px solid #eee; margin: 5px 0;'>
+                <strong style='color: #1f77b4;'>{row['Tipo']} {row['PDF']} (Pg.{row['Pagina']})</strong><br>
+                {dati_str}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.download_button("💾 Scarica risultati", df_display.to_csv(index=False), "ricerca_completa.csv")
+    else:
+        st.info("📄 Nessun dato estratto")
+else:
+    st.error("❌ Cartella 'uploads/' mancante!")
