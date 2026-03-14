@@ -4,94 +4,85 @@ import pandas as pd
 import os
 
 st.set_page_config(layout="wide")
-st.title("🔍 Ricerca Globale Preventivi - TUTTI PDF + Volantini")
+st.title("🔍 Ricerca Globale Preventivi - DEBUG PDF")
 
-# === CARICA TUTTI PDF AUTOMATICO ===
+# === CARICA TUTTI PDF con DIAGNOSTICA ===
 if os.path.exists("uploads"):
     pdf_files = [f for f in os.listdir("uploads") if f.endswith('.pdf')]
     st.success(f"✅ {len(pdf_files)} PDF caricati: {', '.join(pdf_files)}")
     
-    # === ESTRAI DA TUTTI I PDF (TABELLE + TESTO LIBERO) ===
     all_data = []
+    debug_info = []
+    
     for pdf_file in pdf_files:
         pdf_path = f"uploads/{pdf_file}"
+        st.write(f"🔍 Analizzo **{pdf_file}**...")
+        
         try:
             with pdfplumber.open(pdf_path) as pdf:
-                for i, page in enumerate(pdf.pages):
-                    # === 1. TABELLE (come prima) ===
+                total_pages = len(pdf.pages)
+                st.write(f"   📄 {total_pages} pagine totali")
+                
+                page_content_types = []
+                has_content = False
+                
+                for i, page in enumerate(pdf.pages[:3]):  # Prime 3 pg
+                    # 1. TABELLE
                     tables = page.extract_tables()
-                    if tables:
+                    num_tables = len(tables or [])
+                    if num_tables > 0:
+                        page_content_types.append(f"TAB({num_tables})")
                         for table in tables:
                             if len(table) > 1:
                                 headers = table[0]
-                                for row in table[1:]:
+                                for row in table[1:2]:  # Solo 1 riga x esempio
                                     all_data.append({
-                                        'PDF': pdf_file,
-                                        'Pagina': i+1,
-                                        'Tipo': 'TAB',
+                                        'PDF': pdf_file, 'Pagina': i+1, 'Tipo': 'TAB',
                                         'Dati': dict(zip(headers[:5], row[:5]))
                                     })
+                        has_content = True
                     
-                    # === 2. TESTO LIBERO (per volantini) ===
+                    # 2. TESTO
                     page_text = page.extract_text()
-                    if page_text:
-                        lines = [line.strip() for line in page_text.split('\n') if line.strip() and len(line.strip()) > 3]
-                        for line_num, line in enumerate(lines[:10]):  # Prime 10 righe per pg
+                    num_lines = len([l for l in page_text.split('\n') if l.strip()])
+                    if num_lines > 2:
+                        page_content_types.append(f"TXT({num_lines})")
+                        lines = [l.strip() for l in page_text.split('\n') if l.strip()]
+                        for line in lines[:3]:  # Prime 3 righe
                             all_data.append({
-                                'PDF': pdf_file,
-                                'Pagina': i+1,
-                                'Tipo': 'TESTO',
+                                'PDF': pdf_file, 'Pagina': i+1, 'Tipo': 'TXT',
                                 'Dati': {'Testo': line[:100]}
                             })
+                        has_content = True
+                
+                debug_info.append(f"{pdf_file}: {', '.join(page_content_types) if page_content_types else 'VUOTO'}")
+                
+                if not has_content:
+                    st.warning(f"⚠️ {pdf_file}: Nessun contenuto rilevato")
+                else:
+                    st.success(f"✅ {pdf_file}: OK")
                     
-                    # === 3. IMMAGINI ===
-                    images = page.images
-                    if images:
-                        for img_idx, img in enumerate(images):
-                            all_data.append({
-                                'PDF': pdf_file,
-                                'Pagina': i+1,
-                                'Tipo': 'IMG',
-                                'Dati': {'Immagine': f'Img{img_idx+1} {img["size"]}'}
-                            })
-        except:
-            st.warning(f"⚠️ Errore lettura {pdf_file}")
+        except Exception as e:
+            st.error(f"❌ {pdf_file}: ERRORE {str(e)[:50]}")
+            debug_info.append(f"{pdf_file}: ERRORE")
+    
+    st.subheader("📋 DEBUG RIEPILOGO")
+    for info in debug_info:
+        st.write(info)
     
     if all_data:
         df = pd.DataFrame(all_data)
-        st.success(f"📊 {len(df)} righe totali (Tabelle: {len([x for x in all_data if x['Tipo']=='TAB'])}, Testo: {len([x for x in all_data if x['Tipo']=='TESTO'])}, Img: {len([x for x in all_data if x['Tipo']=='IMG'])})")
+        st.success(f"📊 {len(df)} righe estratte totali")
         
-        # === RICERCA GLOBALE ===
-        st.subheader("🔍 RICERCA SU TUTTI I PDF")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            query_tutti = st.text_input("🔎 Cerca ovunque")
-        with col2:
-            query_codice = st.text_input("📱 Codice/SKU") 
-        with col3:
-            query_prodotto = st.text_input("📦 Prodotto/Descrizione")
-        
-        # === FILTRA ===
-        df_display = df.copy()
-        for query in [q for q in [query_tutti, query_codice, query_prodotto] if q]:
-            df_display = df_display[df_display['Dati'].astype(str).str.contains(query, case=False, na=False)]
-        
-        st.success(f"🔎 {len(df_display)} risultati trovati")
-        
-        # === SOLO COLONNA DATI - GRANDI ===
-        st.subheader(f"📋 {len(df_display)} Risultati")
-        for idx, row in df_display.iterrows():
-            dati_str = " | ".join([f"{k}: {v}" for k,v in row['Dati'].items() if v])
-            tipo_emoji = {'TAB':'📊', 'TESTO':'📄', 'IMG':'🖼️'}[row['Tipo']]
-            st.markdown(f"""
-            <div style='font-size: 18px; padding: 12px; border-bottom: 1px solid #eee; margin: 5px 0;'>
-                <strong style='color: #1f77b4;'>{tipo_emoji} {row['PDF']} (Pg.{row['Pagina']})</strong><br>
-                {dati_str}
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.download_button("💾 Scarica", df_display.to_csv(index=False), "ricerca_completa.csv")
-    else:
-        st.info("📄 Nessun dato estratto")
-else:
-    st.error("❌ Cartella 'uploads/' mancante!")
+        # RICERCA SEMPLICE
+        query = st.text_input("🔍 Cerca")
+        if query:
+            df_filtered = df[df['Dati'].astype(str).str.contains(query, case=False, na=False)]
+            st.subheader(f"📋 {len(df_filtered)} risultati")
+            for _, row in df_filtered.iterrows():
+                dati_str = " | ".join([f"{k}: {v}" for k,v in row['Dati'].items() if v])
+                st.markdown(f"""
+                <div style='font-size: 16px; padding: 10px; border-bottom: 1px solid #eee;'>
+                    <strong>{row['PDF']} (Pg.{row['Pagina']})</strong>: {dati_str}
+                </div>
+                """, unsafe_allow_html=True)
