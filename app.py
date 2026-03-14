@@ -3,6 +3,9 @@ import pdfplumber
 import pandas as pd
 import os
 
+st.set_page_config(layout
+
+
 st.set_page_config(layout="wide")
 st.title("🔍 Ricerca Globale Preventivi - TUTTI PDF + Volantini")
 
