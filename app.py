@@ -3,7 +3,13 @@ import pdfplumber
 import pandas as pd
 import os
 
-st.set_page_config(layout
+st.set_page_config(layout="wide")
+st.title("🔍 Ricerca Globale Preventivi - TUTTI PDF + Volantini")
+
+# === CARICA TUTTI PDF AUTOMATICO ===
+if os.path.exists("uploads"):
+    pdf_files
+
 
 
 st.set_page_config(layout="wide")
