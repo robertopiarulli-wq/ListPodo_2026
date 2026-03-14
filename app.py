@@ -43,16 +43,9 @@ if os.path.exists("uploads"):
         with col3:
             query_prodotto = st.text_input("📦 Prodotto/Descrizione")
         
-        # === FILTRA SU TUTTI I CAMPI ===
-        df_display = df.copy()
-        for query in [q for q in [query_tutti, query_codice, query_prodotto] if q]:
-            df_display = df_display[df_display['Dati'].astype(str).str.contains(query, case=False, na=False)]
-        
-        st.success(f"🔎 {len(df_display)} risultati trovati")
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
-        
-        st.download_button("💾 Scarica risultati", df_display.to_csv(index=False), "ricerca.csv")
-    else:
-        st.info("📄 Nessuna tabella trovata. Solo testo?")
-else:
-    st.error("❌ Cartella 'uploads/' mancante!")
+# === LISTA SEMPLICE GRANDI CARATTERI ===
+st.subheader(f"📋 {len(df_display)} Risultati")
+for idx, row in df_display.iterrows():
+    st.write(f"**{row['PDF']} - Pg.{row['Pagina']}**")
+    st.write(" | ".join([f"{k}: {v}" for k,v in row['Dati'].items() if v]))
+    st.write("---")
