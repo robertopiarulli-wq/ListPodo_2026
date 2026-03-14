@@ -1,46 +1,16 @@
-import streamlit as st
-import pdfplumber
-import pandas as pd
-import os
+# Dopo estrazione df (riga ~35)
+st.subheader("🔍 RICERCA ESTESA")
+col1, col2, col3 = st.columns(3)
+with col1: query_tutti = st.text_input("🔎 Cerca ovunque")
+with col2: query_codice = st.text_input("📱 Codice")
+with col3: query_prodotto = st.text_input("📦 Prodotto")
 
-st.set_page_config(layout="wide")
-st.title("📊 Preventivo da PDF")
+# Filtra
+df_display = df.copy()
+if query_tutti: 
+    df_display = df_display[df['Dati'].astype(str).str.contains(query_tutti, case=False)]
+if query_codice or query_prodotto:
+    for query in [q for q in [query_codice, query_prodotto] if q]:
+        df_display = df_display[df_display['Dati'].astype(str).str.contains(query, case=False)]
 
-# === LISTA PDF ===
-if os.path.exists("uploads"):
-    pdf_files = [f for f in os.listdir("uploads") if f.endswith('.pdf')]
-    st.success(f"✅ {len(pdf_files)} PDF nuovi caricati!")
-    st.write(pdf_files)
-    
-    selected_pdf = st.selectbox("🔽 Scegli PDF", pdf_files)
-    
-    if selected_pdf:
-        pdf_path = f"uploads/{selected_pdf}"
-        with pdfplumber.open(pdf_path) as pdf:
-            data = []
-            for i, page in enumerate(pdf.pages):
-                tables = page.extract_tables()
-                if tables:
-                    for table in tables:
-                        if len(table) > 1:
-                            headers = table[0]
-                            for row in table[1:]:
-                                data.append({
-                                    'PDF': selected_pdf,
-                                    'Pagina': i+1,
-                                    'Dati': dict(zip(headers, row[:5]))  # Prime 5 colonne
-                                })
-            
-            if data:
-                df = pd.DataFrame(data)
-                st.dataframe(df, use_container_width=True)
-                
-                # RICERCA
-                query = st.text_input("🔍 Cerca (es. 'prezzo' o 'codice')")
-                if query:
-                    filtered = df[df['Dati'].astype(str).str.contains(query, case=False)]
-                    st.dataframe(filtered)
-            else:
-                st.info("📄 Solo testo? Prossimo step: estrazione testo.")
-else:
-    st.error("❌ Crea 'uploads/' su GitHub!")
+st.dataframe(df_display)
